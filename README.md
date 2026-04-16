@@ -1,171 +1,265 @@
-🚀 PHASE 1 — Setup (Do this first, no shortcuts)
-🔷 1. Define your final classes
+# 📦 End-to-End YOLO Object Detection Pipeline
 
-Create:
+This project builds a complete pipeline for creating a custom object detection model using YOLOv8 — from raw images to training and evaluation.
 
-classes.txt
-person
-phone
-laptop
-book
-calculator
+---
 
-👉 This file will be used by:
+# 🚀 Project Overview
 
-YOLO mapping script
-LabelImg
-Training
-🔷 2. Create folder structure
-dataset/
+This pipeline includes:
+
+1. Auto-labeling using pretrained YOLO
+2. Filtering only required classes
+3. Manual annotation for missing objects
+4. Dataset validation
+5. Final dataset preparation
+6. Model training using YOLOv8
+7. Evaluation and inference
+
+---
+
+# 📁 Project Structure
+
+```
+project_root/
 │
-├── raw_images/
-├── auto_labels/
-│   ├── images/
-│   ├── labels/
+├── dataset/
+│   ├── raw_images/              # Original images
+│   ├── auto_labels/             # YOLO auto-generated labels
+│   ├── review/                  # Filtered + manually corrected data
+│   │   ├── images/
+│   │   ├── labels/
+│   │
+│   ├── final_dataset/           # Final dataset for training
+│       ├── images/
+│       ├── labels/
 │
-├── review/
-│   ├── images/
-│   ├── labels/
+├── outputs/                     # Training outputs
 │
-├── final_dataset/
-│   ├── images/
-│   ├── labels/
+├── run_yolo.py                  # Auto-labeling script
+├── filter_labels.py             # Class filtering script
+├── validate_dataset.py          # Dataset validation
+├── create_dataset.py            # Final dataset creation
+├── train.py                     # Training script
 │
-└── classes.txt
-🚀 PHASE 2 — YOLO Auto Labeling
+└── README.md
+```
 
-We’ll use YOLO object detection model
+---
 
-🔷 3. Run YOLO inference
+# ⚙️ Setup Instructions
 
-Example (Ultralytics):
+## 1. Create Environment
 
-yolo predict \
-  model=yolov8n.pt \
-  source=dataset/raw_images \
-  save_txt=True \
-  save_conf=True \
-  project=dataset/auto_labels \
-  name=run1
+```bash
+python -m venv label_env_39
+source label_env_39/bin/activate
+```
 
-👉 Output:
+## 2. Install Dependencies
 
-auto_labels/run1/images/
-auto_labels/run1/labels/
-🚀 PHASE 3 — Filtering + Class Mapping (CRITICAL STEP)
+```bash
+pip install ultralytics opencv-python
+```
 
-Now we write your first real script
+---
 
-🔷 4. Mapping Script (IMPORTANT)
+# 🎯 Classes Used
 
-Create: filter_labels.py
+```
+0 → phone
+1 → laptop
+2 → book
+3 → tv
+4 → headphone
+5 → earbuds
+```
 
-import os
+---
 
-# YOLO COCO → YOUR CLASSES
-YOLO_TO_CUSTOM = {
-    0: 0,   # person
-    67: 1,  # phone
-    63: 2   # laptop
-}
+# 🔄 Step-by-Step Pipeline
 
-INPUT_LABEL_DIR = "dataset/auto_labels/run1/labels"
-INPUT_IMAGE_DIR = "dataset/auto_labels/run1/images"
+## Step 1: Auto Labeling
 
-OUTPUT_LABEL_DIR = "dataset/review/labels"
-OUTPUT_IMAGE_DIR = "dataset/review/images"
+Run YOLO on raw images:
 
-os.makedirs(OUTPUT_LABEL_DIR, exist_ok=True)
-os.makedirs(OUTPUT_IMAGE_DIR, exist_ok=True)
+```bash
+python run_yolo.py
+```
 
-for file in os.listdir(INPUT_LABEL_DIR):
-    if not file.endswith(".txt"):
-        continue
+Output:
 
-    input_path = os.path.join(INPUT_LABEL_DIR, file)
-    output_path = os.path.join(OUTPUT_LABEL_DIR, file)
+```
+dataset/auto_labels/run1/
+```
 
-    new_lines = []
+---
 
-    with open(input_path, "r") as f:
-        lines = f.readlines()
+## Step 2: Filter Required Classes
 
-    for line in lines:
-        parts = line.strip().split()
-        cls_id = int(parts[0])
+Filter only selected classes from YOLO output:
 
-        if cls_id in YOLO_TO_CUSTOM:
-            new_cls = YOLO_TO_CUSTOM[cls_id]
-            new_line = [str(new_cls)] + parts[1:]
-            new_lines.append(" ".join(new_line))
+```bash
+python filter_labels.py
+```
 
-    # Save only if relevant objects exist
-    if new_lines:
-        with open(output_path, "w") as f:
-            f.write("\n".join(new_lines))
+Output:
 
-        # copy corresponding image
-        img_name = file.replace(".txt", ".jpg")
-        src_img = os.path.join(INPUT_IMAGE_DIR, img_name)
-        dst_img = os.path.join(OUTPUT_IMAGE_DIR, img_name)
+```
+dataset/review/
+├── images/
+├── labels/
+```
 
-        if os.path.exists(src_img):
-            import shutil
-            shutil.copy(src_img, dst_img)
-🔥 What this script does
+---
 
-✔ Removes unwanted classes
-✔ Converts class IDs
-✔ Copies only useful images
-✔ Prepares clean review dataset
+## Step 3: Manual Annotation
 
-🚀 PHASE 4 — Manual Review
-🔷 5. Open LabelImg correctly
+Use LabelImg tool:
+
+```bash
 labelImg dataset/review/images dataset/classes.txt
-🔷 6. Your job during review
+```
 
-For each image:
+Instructions:
 
-✔ Fix wrong boxes
-✔ Add missing objects (VERY IMPORTANT)
-✔ Delete incorrect detections
+* Open `dataset/review/images`
+* Set save directory → `dataset/review/labels`
+* Add missing objects (headphone, earbuds, etc.)
+* Do NOT overwrite existing correct labels
 
-👉 Save → updates same .txt
+---
 
-🚀 PHASE 5 — Final Dataset Creation
-🔷 7. Move reviewed data
+## Step 4: Validate Dataset
 
-Simple:
+Check dataset quality:
 
-dataset/review → dataset/final_dataset
+```bash
+python validate_dataset.py
+```
 
-OR script:
+Checks:
 
-import shutil
-shutil.copytree("dataset/review", "dataset/final_dataset", dirs_exist_ok=True)
-🚀 PHASE 6 — Training Ready
+* Missing labels
+* Empty labels
 
-Now your dataset is:
+---
 
-final_dataset/
-  images/
-  labels/
-classes.txt
+## Step 5: Create Final Dataset
 
-👉 Ready for training 🚀
+Prepare clean dataset for training:
 
-🧠 OPTIONAL (But Powerful)
-Add confidence filtering
+```bash
+python create_dataset.py
+```
 
-Modify script:
+Output:
 
-conf = float(parts[-1])  # if saved
+```
+dataset/final_dataset/
+├── images/
+├── labels/
+```
 
-if conf < 0.4:
-    continue
-💡 EXTRA (Future Upgrade)
+---
 
-Later you can:
+## Step 6: Train Model
 
-Auto-send only low-confidence images to review
-Skip high-confidence ones
+```bash
+python train.py
+```
+
+This will:
+
+* Create `data.yaml`
+* Start training
+* Save outputs in:
+
+```
+outputs/yolov8n_exp1/
+```
+
+---
+
+# 📊 Training Output
+
+Key files:
+
+```
+outputs/yolov8n_exp1/
+├── weights/
+│   ├── best.pt
+│   ├── last.pt
+├── results.png
+├── labels.jpg
+```
+
+---
+
+# 🔍 Inference (Testing)
+
+```python
+from ultralytics import YOLO
+
+model = YOLO("outputs/yolov8n_exp1/weights/best.pt")
+model.predict(source="test_images/", save=True)
+```
+
+---
+
+# ⚠️ Important Notes
+
+* Small dataset (41 images) → model may overfit
+* Always test on unseen images
+* Improve dataset for better generalization
+
+---
+
+# 📈 Improvement Suggestions
+
+* Add more images
+* Increase variation (lighting, angles)
+* Balance classes
+* Create train/val split
+
+---
+
+# 🧠 Pipeline Summary
+
+```
+Raw Images
+   ↓
+YOLO Auto Label
+   ↓
+Filter Classes
+   ↓
+Manual Labeling
+   ↓
+Validation
+   ↓
+Final Dataset
+   ↓
+Training
+   ↓
+Model
+```
+
+---
+
+# ✅ Status
+
+✔ End-to-end pipeline completed
+✔ Model trained successfully
+✔ Ready for improvement / deployment
+
+---
+
+# 🚀 Next Steps
+
+* Dataset expansion
+* Model optimization (ONNX / TensorRT)
+* Deployment (API / Streamlit / Triton)
+
+---
+
+**Author:** Apurba

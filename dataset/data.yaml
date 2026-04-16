@@ -1,0 +1,10 @@
+names:
+  0: phone
+  1: laptop
+  2: book
+  3: tv
+  4: headphone
+  5: earbuds
+path: /home/apurba/end-to-end-yolo-object-detection/dataset/final_dataset
+train: images
+val: images
