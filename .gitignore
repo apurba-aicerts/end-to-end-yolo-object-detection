@@ -1,0 +1,10 @@
+# Ignore virtual environments
+label_env_39/
+*.pyc
+__pycache__/
+*.pt
+*.onnx
+*.pth
+data/
+runs/
+.env
